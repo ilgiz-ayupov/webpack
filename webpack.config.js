@@ -1,19 +1,19 @@
 const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
-const { CleanWebpackPlugin } = require("clean-webpack-plugin");
+const FileManagerPlugin = require("filemanager-webpack-plugin");
+const ImageMinimizerPlugin = require("image-minimizer-webpack-plugin");
 
-const filename = (exp) => `[name].[contenthash].${exp ?? "[exp]"}`;
+const filename = (ext) => `[name].[contenthash].${ext ?? "[ext]"}`;
 const src = (fp) => path.resolve(__dirname, `src/${fp ?? ""}`);
-
+const build = (fp) => path.resolve(__dirname, `build/${fp ?? ""}`);
 
 module.exports = {
   mode: "development",
-  context: src(),
-  entry: "./index.js",
+  entry: src("index.js"),
   output: {
     filename: filename("js"),
-    path: path.resolve(__dirname, "build"),
+    path: build(),
   },
   resolve: {
     extensions: [".js", ".json"],
@@ -21,16 +21,42 @@ module.exports = {
       "@styles": src("assets/styles"),
       "@components": src("assets/components"),
       "@fonts": src("assets/fonts"),
-      "@images": src("assets/images")
+      "@images": src("assets/images"),
     },
   },
   devServer: {
+    watchFiles: src(),
     port: 3000,
-    open: true,
     hot: true,
   },
+  optimization: {
+    minimizer: [
+      new ImageMinimizerPlugin({
+        minimizer: {
+          implementation: ImageMinimizerPlugin.imageminMinify,
+          options: {
+            plugins: [
+              ["gifsicle", { interlaced: true }],
+              ["jpegtran", { progressive: true }],
+              ["optipng", { optimizationLevel: 5 }],
+              ["svgo", { name: "preset-default" }],
+            ],
+          },
+        },
+      }),
+    ],
+  },
   plugins: [
-    new CleanWebpackPlugin(),
+    new FileManagerPlugin({
+      events: {
+        onStart: {
+          delete: [build()],
+        },
+        onEnd: {
+          copy: [{ source: src("static"), destination: build() }],
+        },
+      },
+    }),
 
     new HtmlWebpackPlugin({
       title: "Webpack Сборка",
@@ -62,17 +88,30 @@ module.exports = {
       },
       {
         test: /\.(c|sc|sa)ss$/i,
-        use: [MiniCssExtractPlugin.loader, "css-loader", "sass-loader"],
+        use: [
+          MiniCssExtractPlugin.loader,
+          "css-loader",
+          "postcss-loader",
+          "sass-loader",
+        ],
       },
       {
         test: /\.(png|jpe?g|gif)$/i,
-        use: {
-          loader: "file-loader",
-          options: {
-            name: filename(),
-            outputPath: "images",
-          },
+        type: "asset/resource",
+        generator: {
+          filename: path.join("assets/images", filename()),
         },
+      },
+      {
+        test: /\.svg$/,
+        type: "asset/resource",
+        generator: {
+          filename: path.join("assets/icons", filename()),
+        },
+      },
+      {
+        test: /\.(woff2?|eot|ttf|otf)$/i,
+        type: "asset/resource",
       },
     ],
   },

@@ -18,8 +18,8 @@ module.exports = {
   resolve: {
     extensions: [".js", ".json"],
     alias: {
+      "@components": src("components"),
       "@styles": src("assets/styles"),
-      "@components": src("assets/components"),
       "@fonts": src("assets/fonts"),
       "@images": src("assets/images"),
     },
